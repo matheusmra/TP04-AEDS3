@@ -4,8 +4,11 @@
  * Responsável por gerenciar a UI (tabs, formulários base) até que as funcionalidades CRUD sejam implementadas.
  */
 
+import { FileSimulator } from './FileSimulator.js';
+
 class App {
     constructor() {
+        this.fileSimulator = new FileSimulator();
         this.initializeUI();
     }
 
@@ -16,12 +19,31 @@ class App {
             btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
         });
 
-        // Prevenir envio real do formulário (enquanto não implementamos o CRUD)
+        // Prevenir envio real do formulário e acionar inserção
         const formCurso = document.getElementById('form-curso');
         if (formCurso) {
             formCurso.addEventListener('submit', (e) => {
                 e.preventDefault();
-                console.log('Formulário submetido - Funcionalidade CRUD pendente');
+                
+                // Coleta os dados
+                const nome = document.getElementById('nome').value;
+                const instrutor = document.getElementById('instrutor').value;
+                const vagas = parseInt(document.getElementById('vagas').value, 10);
+                const valor = parseFloat(document.getElementById('valor').value);
+                
+                // Insere no arquivo
+                const newId = this.fileSimulator.insertRecord(nome, valor, vagas, instrutor);
+                
+                // Feedback visual (poderia usar um toast real, mas console log + updateUI basta)
+                console.log(`Registro salvo com ID: ${newId}`);
+                
+                // Reseta form e foca no primeiro campo
+                formCurso.reset();
+                document.getElementById('nome').focus();
+                
+                // Atualiza UI
+                this.updateStatsDisplay();
+                this.renderBytes();
             });
         }
 
@@ -35,6 +57,7 @@ class App {
         
         // Setup initial UI states
         this.updateStatsDisplay();
+        this.renderBytes();
     }
 
     switchTab(tabId) {
@@ -57,14 +80,42 @@ class App {
         });
     }
 
-    // Método temporário para inicializar estatísticas
+    // Método para inicializar estatísticas
     updateStatsDisplay() {
-        // Isso será conectado ao FileSimulator na Issue #2
-        const statSize = document.getElementById('stat-size');
-        const statRecords = document.getElementById('stat-records');
+        const statSize = document.querySelector('.stat-pill .stat-value');
+        const statRecords = document.querySelectorAll('.stat-pill .stat-value')[1];
         
-        if (statSize) statSize.textContent = `Tamanho: 0 bytes`;
-        if (statRecords) statRecords.textContent = `Registros: 0`;
+        if (statSize) statSize.textContent = `${this.fileSimulator.getSize()} B`;
+        if (statRecords) statRecords.textContent = `${this.fileSimulator.getHeader().lastId}`; // Simplificação: assume que ID = número de registros inseridos, mas o ideal seria varrer e contar.
+    }
+
+    renderBytes() {
+        const grid = document.getElementById('bytes-grid');
+        if (!grid) return;
+        
+        const byteMap = this.fileSimulator.getByteMap();
+        
+        // Se vazio, mantemos o empty-state? Não, porque temos o cabeçalho.
+        grid.innerHTML = '';
+        
+        byteMap.forEach(b => {
+            const hex = b.value.toString(16).padStart(2, '0').toUpperCase();
+            
+            const byteDiv = document.createElement('div');
+            byteDiv.className = `byte-cell ${b.type}`;
+            byteDiv.textContent = hex;
+            byteDiv.title = `Offset: ${b.index} | Tipo: ${b.label} | Valor: ${b.value}`;
+            
+            byteDiv.addEventListener('mouseenter', () => {
+                document.getElementById('inspector-content').textContent = 
+                    `Offset: ${b.index} | Hex: 0x${hex} | Dec: ${b.value} | Char: ${b.value >= 32 && b.value <= 126 ? String.fromCharCode(b.value) : '.'} | Bloco: ${b.label}`;
+            });
+            byteDiv.addEventListener('mouseleave', () => {
+                document.getElementById('inspector-content').textContent = 'Aguardando interação...';
+            });
+            
+            grid.appendChild(byteDiv);
+        });
     }
 }
 
