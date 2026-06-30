@@ -312,6 +312,21 @@ class App {
             return results;
         }
 
+        findAll() {
+            const results = [];
+            let offset    = 8;
+            while (offset < this.getSize()) {
+                const tombstone = this.readByte(offset);
+                const dataSize  = this.readInt(offset + 1);
+                if (tombstone === 0) {
+                    const record = this.readRecordData(offset + 5);
+                    results.push({ offset, tombstone, dataSize, record });
+                }
+                offset += 5 + dataSize;
+            }
+            return results;
+        }
+
         // ---- UPDATE ----
 
         updateRecord(id, nome, preco, quantidade, categoria) {
@@ -514,6 +529,12 @@ class App {
             this.clearHighlight();
             document.getElementById('termo-busca').value = '';
             document.getElementById('termo-busca').focus();
+        });
+
+        document.getElementById('btn-listar-todos')?.addEventListener('click', () => {
+            this.clearHighlight();
+            const results = this.fileSimulator.findAll();
+            this._renderSearchResults(results, 'Todos os cursos');
         });
     }
 
